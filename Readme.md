@@ -22,7 +22,6 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
   - 🗓️ **Monthly**: Reminders that occur monthly on the specified date.
 - 🎵 **Audio Playback**:
   - ▶️ Play audio files associated with reminders.
-  - 🔁 Supports playing audio once or in a loop until stopped.
 - 🚨 **Reminder Notifications**:
   - ⚠️ Pop-up alerts when reminders trigger, with options to stop audio or minimize the application.
 - ✅ **Task Management**:
