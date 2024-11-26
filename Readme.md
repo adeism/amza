@@ -5,7 +5,7 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
 ---
 ## 🖼️ Screenshots
 
-![screenshot](https://github.com/adeism/amza/blob/main/image.png?raw=true)
+
 
 ---
 
