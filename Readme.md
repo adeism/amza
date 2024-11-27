@@ -2,15 +2,13 @@
 
 AMZ Announcement is a task scheduling application built with Python and PyQt6. It allows users to create reminders that play audio files at specified times, with support for various recurrence patterns such as one-time, daily, weekly, and monthly reminders.
 
----
+
 
 ## 🖼️ Screenshots
 
 ![screenshot](https://github.com/adeism/amza/blob/main/ss.png?raw=true)
 
----
 
----
 
 ## ✨ Features
 
@@ -29,7 +27,6 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
   - 🎛️ Play or stop audio directly from the task list.
   - ❌ Delete reminders as needed.
 
----
 
 ## 🚀 Installation
 
@@ -84,7 +81,6 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
    pip install PyQt6 pygame
    ```
 
----
 
 ## 🖥️ Usage
 
@@ -120,8 +116,6 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
      - 🚫 **Stop Audio**: Stops the audio playback.
      - 📉 **Minimize**: Minimizes the application.
 
----
-
 
 
 ## ⚙️ Configuration
@@ -135,14 +129,12 @@ AMZ Announcement is a task scheduling application built with Python and PyQt6. I
 
 If the play or delete icons do not display correctly, ensure that the icon files are present in the application directory. You can replace the default icons with your own by modifying the paths in the code.
 
----
 
 ## 📜 Notes
 
 - **Audio Files**: Ensure that the audio files you select exist and are accessible. If an audio file is missing or cannot be played, an error message will be displayed.
 - **Closing the Application**: Closing the application will stop all reminders. A confirmation dialog will appear when attempting to close the application.
 
----
 
 ## ❓ Troubleshooting
 
