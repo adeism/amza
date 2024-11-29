@@ -4,47 +4,46 @@ import json
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout,
     QDateTimeEdit, QSpinBox, QRadioButton, QButtonGroup, QPushButton, QFileDialog,
-    QTableWidget, QTableWidgetItem, QStatusBar, QMessageBox, QCheckBox, QGridLayout,
-    QHeaderView, QDialog, QComboBox, QDialogButtonBox
+    QTableWidget, QTableWidgetItem, QStatusBar, QMessageBox, QCheckBox,
+    QHeaderView, QDialog, QComboBox, QDialogButtonBox, QGridLayout
 )
 from PyQt6.QtCore import QDateTime, QTimer, Qt
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtGui import QIcon
 import pygame
 from datetime import datetime, timedelta
 
 
-class WeeklyRecurrenceDialog(QDialog):
-    def __init__(self, parent=None):
+class RecurrenceDialog(QDialog):
+    def __init__(self, parent=None, title="Recurrence Settings", interval_range=(1, 1), interval_label="interval(s)", items={}):
         super().__init__(parent)
-        self.setWindowTitle("Weekly Recurrence Settings")
+        self.setWindowTitle(title)
         self.setModal(True)
+        self.interval_range = interval_range
+        self.interval_label = interval_label
+        self.items = items
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout()
 
         recur_layout = QHBoxLayout()
-        recur_layout.addWidget(QLabel("Recur every:"))
-        self.weekly_interval_spinbox = QSpinBox()
-        self.weekly_interval_spinbox.setRange(1, 52)
-        self.weekly_interval_spinbox.setValue(1)
-        recur_layout.addWidget(self.weekly_interval_spinbox)
-        recur_layout.addWidget(QLabel("week(s)"))
+        recur_layout.addWidget(QLabel(f"Recur every:"))
+        self.interval_spinbox = QSpinBox()
+        self.interval_spinbox.setRange(*self.interval_range)
+        self.interval_spinbox.setValue(1)
+        recur_layout.addWidget(self.interval_spinbox)
+        recur_layout.addWidget(QLabel(self.interval_label))
         layout.addLayout(recur_layout)
 
-        self.days_checkboxes = {
-            "Monday": QCheckBox("Monday"),
-            "Tuesday": QCheckBox("Tuesday"),
-            "Wednesday": QCheckBox("Wednesday"),
-            "Thursday": QCheckBox("Thursday"),
-            "Friday": QCheckBox("Friday"),
-            "Saturday": QCheckBox("Saturday"),
-            "Sunday": QCheckBox("Sunday"),
-        }
-        days_layout = QHBoxLayout()
-        for day in self.days_checkboxes.values():
-            days_layout.addWidget(day)
-        layout.addLayout(days_layout)
+        items_layout = QGridLayout()
+        row, col = 0, 0
+        for item_name, checkbox in self.items.items():
+            items_layout.addWidget(checkbox, row, col)
+            col += 1
+            if col == 4:  # 4 columns per row
+                row += 1
+                col = 0
+        layout.addLayout(items_layout)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -54,60 +53,19 @@ class WeeklyRecurrenceDialog(QDialog):
         self.setLayout(layout)
 
     def get_values(self):
-        interval = self.weekly_interval_spinbox.value()
-        days = [day for day, checkbox in self.days_checkboxes.items() if checkbox.isChecked()]
-        return interval, days
+        interval = self.interval_spinbox.value()
+        selected_items = [item_name for item_name, checkbox in self.items.items() if checkbox.isChecked()]
+        return interval, selected_items
 
 
-class MonthlyRecurrenceDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Monthly Recurrence Settings")
-        self.setModal(True)
-        self.setup_ui()
+def create_weekly_dialog(parent):
+    days = {day: QCheckBox(day) for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+    return RecurrenceDialog(parent, "Weekly Recurrence", (1, 52), "week(s)", days)
 
-    def setup_ui(self):
-        layout = QVBoxLayout()
 
-        recur_layout = QHBoxLayout()
-        recur_layout.addWidget(QLabel("Recur every:"))
-        self.monthly_interval_spinbox = QSpinBox()
-        self.monthly_interval_spinbox.setRange(1, 12)
-        self.monthly_interval_spinbox.setValue(1)
-        recur_layout.addWidget(self.monthly_interval_spinbox)
-        recur_layout.addWidget(QLabel("month(s)"))
-        layout.addLayout(recur_layout)
-
-        self.month_checkboxes = {
-            "January": QCheckBox("January"),
-            "February": QCheckBox("February"),
-            "March": QCheckBox("March"),
-            "April": QCheckBox("April"),
-            "May": QCheckBox("May"),
-            "June": QCheckBox("June"),
-            "July": QCheckBox("July"),
-            "August": QCheckBox("August"),
-            "September": QCheckBox("September"),
-            "October": QCheckBox("October"),
-            "November": QCheckBox("November"),
-            "December": QCheckBox("December"),
-        }
-        months_layout = QHBoxLayout()
-        for month in self.month_checkboxes.values():
-            months_layout.addWidget(month)
-        layout.addLayout(months_layout)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-        self.setLayout(layout)
-
-    def get_values(self):
-        interval = self.monthly_interval_spinbox.value()
-        months = [month for month, checkbox in self.month_checkboxes.items() if checkbox.isChecked()]
-        return interval, months
+def create_monthly_dialog(parent):
+    months = {month: QCheckBox(month) for month in ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]}
+    return RecurrenceDialog(parent, "Monthly Recurrence", (1, 12), "month(s)", months)
 
 
 class TaskScheduler(QMainWindow):
@@ -269,16 +227,16 @@ class TaskScheduler(QMainWindow):
 
     def create_task_tables(self):
         self.active_table = QTableWidget()
-        self.active_table.setColumnCount(6)
-        self.active_table.setHorizontalHeaderLabels(["Task Name", "Start Time", "Recurrence", "Play", "Edit", "Delete"])
+        self.active_table.setColumnCount(5)
+        self.active_table.setHorizontalHeaderLabels(["Task Name", "Start Time", "Recurrence", "Play", "Edit"])
         self.setup_table(self.active_table)
         self.main_layout.addWidget(self.active_table)
 
         self.inactive_button = QPushButton("Show Inactive Tasks")
         self.inactive_button.clicked.connect(self.toggle_inactive_tasks)
         self.inactive_table = QTableWidget()
-        self.inactive_table.setColumnCount(6)
-        self.inactive_table.setHorizontalHeaderLabels(["Task Name", "Start Time", "Recurrence", "Play", "Edit", "Delete"])
+        self.inactive_table.setColumnCount(5)
+        self.inactive_table.setHorizontalHeaderLabels(["Task Name", "Start Time", "Recurrence", "Play", "Edit"])
         self.setup_table(self.inactive_table)
         self.inactive_table.setVisible(False)
         self.main_layout.addWidget(self.inactive_button)
@@ -300,17 +258,14 @@ class TaskScheduler(QMainWindow):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
 
         table.setColumnWidth(3, 40)
         table.setColumnWidth(4, 40)
-        table.setColumnWidth(5, 40)
 
         for i in range(table.columnCount()):
             item = table.horizontalHeaderItem(i)
             if item:
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
 
     def handle_recurrence_selection(self, button):
         if button == self.weekly_radio:
@@ -603,12 +558,11 @@ class TaskScheduler(QMainWindow):
     def refresh_tables(self):
         self.active_table.setRowCount(0)
         self.inactive_table.setRowCount(0)
-
-        for reminder in self.reminders:
+        for i, reminder in enumerate(self.reminders):
             table = self.active_table if reminder["active"] else self.inactive_table
-            self.add_reminder_to_table(table, reminder)
+            self.add_reminder_to_table(table, reminder, i)
 
-    def add_reminder_to_table(self, table, reminder):
+    def add_reminder_to_table(self, table, reminder, row_index):
         row_position = table.rowCount()
         table.insertRow(row_position)
 
@@ -619,13 +573,8 @@ class TaskScheduler(QMainWindow):
 
         edit_button = QPushButton()
         edit_button.setIcon(QIcon.fromTheme('document-open'))
-        edit_button.clicked.connect(lambda _, r=reminder: self.show_edit_dialog(r))
+        edit_button.clicked.connect(lambda _, ri=row_index: self.show_edit_dialog(ri))
         edit_button.setFixedSize(30, 30)
-
-        delete_button = QPushButton()
-        delete_button.setIcon(QIcon.fromTheme('edit-delete'))
-        delete_button.clicked.connect(lambda _, r=reminder: self.delete_reminder(r))
-        delete_button.setFixedSize(30, 30)
 
         table.setItem(row_position, 0, QTableWidgetItem(reminder["task_name"]))
         start_time_str = QDateTime.fromSecsSinceEpoch(int(reminder["start_time"])).toString("dd/MM/yyyy hh:mm:ss")
@@ -634,9 +583,8 @@ class TaskScheduler(QMainWindow):
         table.setItem(row_position, 2, QTableWidgetItem(recurrence_str))
         table.setCellWidget(row_position, 3, play_button)
         table.setCellWidget(row_position, 4, edit_button)
-        table.setCellWidget(row_position, 5, delete_button)
 
-        for col in range(6):
+        for col in range(5):
             item = table.item(row_position, col)
             if item:
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -720,25 +668,29 @@ class TaskScheduler(QMainWindow):
         table = self.sender()
         if col == 4:  # Clicked on "Edit" button
             row_index = table.row()
-            reminder = self.reminders[row_index]
-            self.show_edit_dialog(reminder)
+            self.show_edit_dialog(row_index)
 
-    def show_edit_dialog(self, reminder):
-        dialog = EditReminderDialog(self, reminder)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            updated_reminder = dialog.get_values()
-            index = self.reminders.index(reminder)
-            self.reminders[index] = updated_reminder
-            self.save_reminders()
-            self.refresh_tables()
+    def show_edit_dialog(self, row_index):
+        if 0 <= row_index < len(self.reminders):
+            reminder = self.reminders[row_index]
+            dialog = EditReminderDialog(self, reminder, row_index)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                updated_reminder = dialog.get_values()
+                self.reminders[row_index] = updated_reminder
+                self.save_reminders()
+                self.refresh_tables()
+            elif dialog.result() == QDialog.DialogCode.Rejected:
+                pass
+
 
 
 class EditReminderDialog(QDialog):
-    def __init__(self, parent, reminder):
+    def __init__(self, parent, reminder, row_index):
         super().__init__(parent)
         self.setWindowTitle("Edit Reminder")
         self.setModal(True)
         self.reminder = reminder
+        self.row_index = row_index
         self.weekly_interval = None
         self.weekly_days = None
         self.monthly_interval = None
@@ -760,7 +712,7 @@ class EditReminderDialog(QDialog):
         self.start_datetime.setDisplayFormat("dd/MM/yyyy hh:mm:ss")
         self.start_datetime.setCalendarPopup(True)
         start_layout.addWidget(self.start_datetime)
-        layout.        addLayout(start_layout)
+        layout.addLayout(start_layout)
 
         recurrence_layout = QHBoxLayout()
         self.recurrence_group = QButtonGroup(self)
@@ -777,6 +729,54 @@ class EditReminderDialog(QDialog):
         recurrence_layout.addWidget(self.weekly_radio)
         recurrence_layout.addWidget(self.monthly_radio)
         layout.addLayout(recurrence_layout)
+
+
+        # WEEKLY RECURRENCE CHECKBOXES
+        self.weekly_checkboxes = {
+            "Monday": QCheckBox("Monday"),
+            "Tuesday": QCheckBox("Tuesday"),
+            "Wednesday": QCheckBox("Wednesday"),
+            "Thursday": QCheckBox("Thursday"),
+            "Friday": QCheckBox("Friday"),
+            "Saturday": QCheckBox("Saturday"),
+            "Sunday": QCheckBox("Sunday"),
+        }
+        weekly_layout = QVBoxLayout()
+        weekly_interval_layout = QHBoxLayout()
+        weekly_interval_layout.addWidget(QLabel("Recur every:"))
+        self.weekly_interval_spinbox = QSpinBox()
+        self.weekly_interval_spinbox.setRange(1, 52)
+        weekly_interval_layout.addWidget(self.weekly_interval_spinbox)
+        weekly_interval_layout.addWidget(QLabel("week(s)"))
+        weekly_layout.addLayout(weekly_interval_layout)
+        days_layout = QHBoxLayout()
+        for day, cb in self.weekly_checkboxes.items():
+            days_layout.addWidget(cb)
+        weekly_layout.addLayout(days_layout)
+        self.weekly_layout_widget = QWidget()
+        self.weekly_layout_widget.setLayout(weekly_layout)
+        self.weekly_layout_widget.setVisible(False)
+        layout.addWidget(self.weekly_layout_widget)
+
+        # MONTHLY RECURRENCE CHECKBOXES (Concise version)
+        months_layout = QHBoxLayout()
+        self.monthly_checkboxes = {month: QCheckBox(month) for month in ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]}
+        for month in self.monthly_checkboxes.values():
+            months_layout.addWidget(month)
+        monthly_layout = QVBoxLayout()
+        monthly_interval_layout = QHBoxLayout()
+        monthly_interval_layout.addWidget(QLabel("Recur every:"))
+        self.monthly_interval_spinbox = QSpinBox()
+        self.monthly_interval_spinbox.setRange(1, 12)
+        monthly_interval_layout.addWidget(self.monthly_interval_spinbox)
+        monthly_interval_layout.addWidget(QLabel("month(s)"))
+        monthly_layout.addLayout(monthly_interval_layout)
+        monthly_layout.addLayout(months_layout)
+        self.monthly_layout_widget = QWidget()
+        self.monthly_layout_widget.setLayout(monthly_layout)
+        self.monthly_layout_widget.setVisible(False)
+        layout.addWidget(self.monthly_layout_widget)
+
 
         audio_layout = QVBoxLayout()
 
@@ -819,9 +819,18 @@ class EditReminderDialog(QDialog):
         audio_layout.addLayout(main_audio_layout)
         layout.addLayout(audio_layout)
 
+        active_checkbox_layout = QHBoxLayout()
+        self.active_checkbox = QCheckBox("Active")
+        self.active_checkbox.setChecked(self.reminder["active"])
+        active_checkbox_layout.addWidget(self.active_checkbox)
+        layout.addLayout(active_checkbox_layout)
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        delete_button = QPushButton("Delete")
+        delete_button.clicked.connect(self.delete_reminder)
+        buttons.addButton(delete_button, QDialogButtonBox.ButtonRole.RejectRole)
         layout.addWidget(buttons)
 
         self.setLayout(layout)
@@ -834,11 +843,80 @@ class EditReminderDialog(QDialog):
             self.daily_radio.setChecked(True)
         elif recurrence_type == "weekly":
             self.weekly_radio.setChecked(True)
-            self.weekly_interval, self.weekly_days = self.reminder["recurrence"].get("interval",1), self.reminder["recurrence"].get("days",[])
+            self.weekly_interval = self.reminder["recurrence"].get("interval", 1)
+            self.weekly_layout_widget.setVisible(True)
+            for day, cb in self.weekly_checkboxes.items():
+                cb.setChecked(day in self.reminder["recurrence"].get("days", []))
+            self.weekly_interval_spinbox.setValue(self.weekly_interval)
 
         elif recurrence_type == "monthly":
             self.monthly_radio.setChecked(True)
-            self.monthly_interval, self.monthly_months = self.reminder["recurrence"].get("interval",1), self.reminder["recurrence"].get("months",[])
+            self.monthly_interval = self.reminder["recurrence"].get("interval", 1)
+            self.monthly_layout_widget.setVisible(True)
+            for month, cb in self.monthly_checkboxes.items():
+                cb.setChecked(month in self.reminder["recurrence"].get("months", []))
+            self.monthly_interval_spinbox.setValue(self.monthly_interval)
+
+
+
+    def handle_recurrence_selection(self, button):
+        if button == self.weekly_radio:
+            self.weekly_layout_widget.setVisible(True)
+            self.monthly_layout_widget.setVisible(False)
+        elif button == self.monthly_radio:
+            self.monthly_layout_widget.setVisible(True)
+            self.weekly_layout_widget.setVisible(False)
+        else:
+            self.weekly_layout_widget.setVisible(False)
+            self.monthly_layout_widget.setVisible(False)
+
+
+    def get_values(self):
+        task_name = self.task_name_edit.text()
+        start_time = self.start_datetime.dateTime().toSecsSinceEpoch()
+        audio_file = self.audio_path_edit.text()
+        pre_audio_file = self.pre_audio_combo.currentText()
+        loops = self.loops_spinbox.value()
+        delay_between_loops = self.delay_spinbox.value()
+
+        recurrence = None
+        if self.one_time_radio.isChecked():
+            recurrence = {"type": "one_time"}
+        elif self.daily_radio.isChecked():
+            recurrence = {"type": "daily"}
+        elif self.weekly_radio.isChecked():
+            interval = self.weekly_interval_spinbox.value()
+            days = [day for day, cb in self.weekly_checkboxes.items() if cb.isChecked()]
+            recurrence = {"type": "weekly", "interval": interval, "days": days}
+        elif self.monthly_radio.isChecked():
+            interval = self.monthly_interval_spinbox.value()
+            months = [month for month, cb in self.monthly_checkboxes.items() if cb.isChecked()]
+            recurrence = {"type": "monthly", "interval": interval, "months": months}
+
+        return {
+            "task_name": task_name,
+            "start_time": start_time,
+            "audio_file": audio_file,
+            "pre_audio_file": pre_audio_file if pre_audio_file != "None" else None,
+            "loops": loops,
+            "delay_between_loops": delay_between_loops,
+            "recurrence": recurrence,
+            "active": self.active_checkbox.isChecked()
+        }
+
+    def delete_reminder(self):
+        reply = QMessageBox.question(
+            self,
+            "Delete Reminder",
+            "Are you sure you want to delete this reminder?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.parent().currently_playing_reminder == self.reminder:
+                self.parent().stop_audio()
+            self.parent().delete_reminder(self.reminder)
+            self.accept()
 
     def load_pre_audio_files(self):
         self.pre_audio_combo.clear()
@@ -876,46 +954,14 @@ class EditReminderDialog(QDialog):
 
     def handle_recurrence_selection(self, button):
         if button == self.weekly_radio:
-            dialog = WeeklyRecurrenceDialog(self)
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.weekly_interval, self.weekly_days = dialog.get_values()
-            else:
-                self.one_time_radio.setChecked(True)
+            self.weekly_layout_widget.setVisible(True)
+            self.monthly_layout_widget.setVisible(False)
         elif button == self.monthly_radio:
-            dialog = MonthlyRecurrenceDialog(self)
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.monthly_interval, self.monthly_months = dialog.get_values()
-            else:
-                self.one_time_radio.setChecked(True)
-
-    def get_values(self):
-        task_name = self.task_name_edit.text()
-        start_time = self.start_datetime.dateTime().toSecsSinceEpoch()
-        audio_file = self.audio_path_edit.text()
-        pre_audio_file = self.pre_audio_combo.currentText()
-        loops = self.loops_spinbox.value()
-        delay_between_loops = self.delay_spinbox.value()
-
-        recurrence = None
-        if self.one_time_radio.isChecked():
-            recurrence = {"type": "one_time"}
-        elif self.daily_radio.isChecked():
-            recurrence = {"type": "daily"}
-        elif self.weekly_radio.isChecked():
-            recurrence = {"type": "weekly", "interval": self.weekly_interval, "days": self.weekly_days}
-        elif self.monthly_radio.isChecked():
-            recurrence = {"type": "monthly", "interval": self.monthly_interval, "months": self.monthly_months}
-
-        return {
-            "task_name": task_name,
-            "start_time": start_time,
-            "audio_file": audio_file,
-            "pre_audio_file": pre_audio_file if pre_audio_file != "None" else None,
-            "loops": loops,
-            "delay_between_loops": delay_between_loops,
-            "recurrence": recurrence,
-            "active": self.reminder["active"]
-        }
+            self.monthly_layout_widget.setVisible(True)
+            self.weekly_layout_widget.setVisible(False)
+        else:
+            self.weekly_layout_widget.setVisible(False)
+            self.monthly_layout_widget.setVisible(False)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
